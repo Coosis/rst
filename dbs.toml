@@ -1,0 +1,4 @@
+time = 86400
+
+[dbs]
+db1 = "localhost:27017"

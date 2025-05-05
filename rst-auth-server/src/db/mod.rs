@@ -1,0 +1,15 @@
+pub const MONGODB_URI: &str = "mongodb://localhost:27017";
+// pub const CACHE_URL: &str = "redis://localhost:6379";
+pub const DB: &str = "auth_db";
+pub const TB_USERS: &str = "users";
+// pub const TB_MESSAGES: &str = "messages";
+// pub const TB_CHATS: &str = "chats";
+// pub const TB_INVITES: &str = "invites";
+mod find;
+pub use find::*;
+mod update;
+pub use update::*;
+mod bson_util;
+mod insert;
+pub use insert::*;
+// pub use bson_util::*;

@@ -1,0 +1,3 @@
+[workspace]
+members = ["rst-server", "rst-client", "lib", "rst-proc-macro", "rst-auth-server"]
+resolver = "2"
