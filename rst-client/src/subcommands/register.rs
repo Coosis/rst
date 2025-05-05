@@ -1,3 +1,5 @@
+use tracing::debug;
+
 use lib::comm::client_instruct::RegisterRequest;
 use crate::ClientError;
 
@@ -15,6 +17,10 @@ pub async fn register(
                 ));
     }
 
+    debug!("Registering with addr: {}", addr);
+    debug!("Phone: {:?}", phone);
+    debug!("Email: {:?}", email);
+    debug!("Username: {}", username);
     let request = RegisterRequest::new(
         email, phone, username, passwd);
     let client = reqwest::Client::new();

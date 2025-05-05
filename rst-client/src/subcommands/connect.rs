@@ -42,11 +42,13 @@ pub async fn connect(addr: String, sub: bool)
     println!("Email:");
     buffered.read_line(&mut email).await?;
     email = email.trim_end_matches('\n').to_string();
+    email = email.trim_end_matches('\r').to_string();
 
     if email.is_empty() {
         println!("Phone:");
         buffered.read_line(&mut phone).await?;
         phone = phone.trim_end_matches('\n').to_string();
+        phone = phone.trim_end_matches('\r').to_string();
     }
 
     if email.is_empty() && phone.is_empty() {
