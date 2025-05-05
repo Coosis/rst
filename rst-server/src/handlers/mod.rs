@@ -75,12 +75,12 @@ pub enum HandleError {
     BsonSerError(#[from] bson::ser::Error),
 
     // In-mem cache related errors
-    #[error("Failed to connect to in-mem cache: {0}")]
-    CacheConnectionError(String),
-    #[error("Failed to multiplex connection")]
-    MultiplexError,
-    #[error("Cache error: {0}")]
-    CacheError(#[from] redis::RedisError),
+    // #[error("Failed to connect to in-mem cache: {0}")]
+    // CacheConnectionError(String),
+    // #[error("Failed to multiplex connection")]
+    // MultiplexError,
+    // #[error("Cache error: {0}")]
+    // CacheError(#[from] redis::RedisError),
 }
 
 impl IntoResponse for HandleError {

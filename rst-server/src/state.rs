@@ -20,7 +20,7 @@ pub struct AppState {
     /// user id -> message channel
     pub authed_tx: HashMap<Uuid, MsgChan>,
     pub db_client: mongodb::Client,
-    pub kv_client: redis::aio::MultiplexedConnection,
+    // pub kv_client: redis::aio::MultiplexedConnection,
     pub argon: Argon2<'static>,
     pub client: reqwest::Client,
 }
@@ -46,30 +46,30 @@ impl AppState {
         };
 
         // Cache connection
-        let client = match redis::Client::open(kv_uri) {
-            Ok(c) => c,
-            Err(_) => return Err(
-                HandleError::CacheConnectionError(
-                    "Failed to connect to Redis".to_string()
-                )
-            )
-        };
-        let mut multiplexed = match client.get_multiplexed_tokio_connection()
+        // let client = match redis::Client::open(kv_uri) {
+        //     Ok(c) => c,
+        //     Err(_) => return Err(
+        //         HandleError::CacheConnectionError(
+        //             "Failed to connect to Redis".to_string()
+        //         )
+        //     )
+        // };
         // let mut multiplexed = match client.get_multiplexed_tokio_connection()
-            .await {
-            Ok(m) => m,
-            Err(_) => return Err(
-                HandleError::CacheConnectionError(
-                    "Failed to get multiplexed connection".to_string()
-                )
-            )
-            };
-        multiplexed.set_response_timeout(std::time::Duration::from_secs(5));
+        // // let mut multiplexed = match client.get_multiplexed_tokio_connection()
+        //     .await {
+        //     Ok(m) => m,
+        //     Err(_) => return Err(
+        //         HandleError::CacheConnectionError(
+        //             "Failed to get multiplexed connection".to_string()
+        //         )
+        //     )
+        //     };
+        // multiplexed.set_response_timeout(std::time::Duration::from_secs(5));
         Ok(AppState { 
             // tx: HashMap::new(),
             authed_tx: HashMap::new(),
             db_client,
-            kv_client: multiplexed,
+            // kv_client: multiplexed,
             argon: Argon2::default(),
             client: reqwest::Client::new(),
         })
