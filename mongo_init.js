@@ -1,5 +1,3 @@
-db.createCollection('users')
-db.users.createIndex({ id: 1 }, { unique: true })
 db.createCollection('messages')
 db.messages.createIndex({ id: 1 }, { unique: true })
 db.messages.createIndex({ to: 1 })

@@ -41,14 +41,12 @@ pub async fn connect(addr: String, sub: bool)
 
     println!("Email:");
     buffered.read_line(&mut email).await?;
-    email = email.trim_end_matches('\n').to_string();
-    email = email.trim_end_matches('\r').to_string();
+    email = email.trim_ascii().to_string();
 
     if email.is_empty() {
         println!("Phone:");
         buffered.read_line(&mut phone).await?;
-        phone = phone.trim_end_matches('\n').to_string();
-        phone = phone.trim_end_matches('\r').to_string();
+        phone = phone.trim_ascii().to_string();
     }
 
     if email.is_empty() && phone.is_empty() {
@@ -68,7 +66,7 @@ pub async fn connect(addr: String, sub: bool)
     println!("Password:");
     let mut passwd = String::new();
     buffered.read_line(&mut passwd).await?;
-    passwd = passwd.trim_end_matches('\n').to_string();
+    passwd = passwd.trim_ascii().to_string();
     if passwd.is_empty() {
         return Err(ClientError::InvalidInput(
                 "No password provided".to_string()

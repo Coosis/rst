@@ -20,10 +20,11 @@ pub async fn register(
     debug!("Handling register request");
     let salt = SaltString::generate(&mut OsRng);
     let argon = &state.argon;
-    debug!("password: {:?}", request.passwd);
+    let passwd = request.passwd.trim_ascii();
+    debug!("password: {:?}", passwd);
 
     let passwd_hash = argon
-        .hash_password(request.passwd.as_bytes(), &salt)
+        .hash_password(passwd.as_bytes(), &salt)
         .map_err(|_| AuthError::HashError("Failed to hash password".to_string()))?
         .to_string();
 
