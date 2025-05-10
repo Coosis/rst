@@ -1,8 +1,10 @@
+use std::hash::Hash;
+
 use crate::Uuid;
 use serde::{Deserialize, Serialize};
 use jsonwebtoken::{errors::Result, EncodingKey};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Deserialize, Serialize)]
 pub struct Jwt {
     pub uid: Uuid,

@@ -5,20 +5,19 @@ use lib::chat::Chat;
 use lib::invite;
 use lib::comm::client_instruct::ClientConnectRequest;
 use lib::comm::server_instruct::ServerConnectRequest;
-use tokio::sync::MutexGuard;
 use tracing::debug;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::insert_one;
 use crate::message_util::MessageExt;
-use crate::state::AppState;
+use crate::LockedState;
 use crate::AUTH_SERVER;
-use crate::{MsgChan, Result, HandleError};
-use crate::{TB_CHATS, TB_USERS, TB_INVITES};
+use crate::Result;
+use crate::{TB_CHATS, TB_INVITES};
 
 pub async fn connect_with(
-    state: MutexGuard<'_, AppState>,
     token: Jwt,
+    state: &LockedState<'_>,
     req: ClientConnectRequest,
     ) -> Result<()> {
     debug!("Handling connect_with");
@@ -31,7 +30,6 @@ pub async fn connect_with(
     let db_client = state.db_client.clone();
     let chatid = Uuid::new_v4();
     debug!("creating chat with id: {}", chatid);
-    let mut invites = vec![];
     for u in &req.to {
         let recv_id = match u.id {
             Some(u) => u,
@@ -54,15 +52,14 @@ pub async fn connect_with(
                     .await?
             }
         };
-        let tx = state.get_tx(recv_id).await.ok();
-        invites.push(invite_user(
-            tx,
+        invite_user(
+            state,
             &req,
             &db_client,
             sender,
             recv_id,
             chatid.clone()
-        ).await?);
+        ).await?;
     }
 
     let chat = Chat::new(
@@ -85,7 +82,7 @@ pub async fn connect_with(
 }
 
 async fn invite_user(
-    tx: Option<MsgChan>,
+    state: &LockedState<'_>,
     req: &ClientConnectRequest,
     db_client: &mongodb::Client,
     sender: Uuid, // sender's uid
@@ -105,14 +102,13 @@ async fn invite_user(
         ).await?;
 
     // stream the invite if the receiver is online
-    if let Some(tx) = tx {
-        let msg = ServerConnectRequest::new(
-            sender,
-            now,
-            req.name.clone(),
-            req.description.clone())
-            .try_into_ws_msg()?;
-        let _ = tx.send(msg);
-    }
+    let msg = ServerConnectRequest::new(
+        sender,
+        now,
+        req.name.clone(),
+        req.description.clone())
+        .try_into_ws_msg()?;
+    debug!("Sending invite to receiver: {}", receiver);
+    state.broadcast(receiver, msg)?;
     Ok(inv)
 }

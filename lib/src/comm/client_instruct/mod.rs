@@ -12,3 +12,5 @@ mod show_invites_request;
 pub use show_invites_request::*;
 mod show_metadata;
 pub use show_metadata::*;
+mod list_chats;
+pub use list_chats::*;

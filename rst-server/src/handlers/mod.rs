@@ -1,6 +1,7 @@
 use std::str::Utf8Error;
+use tokio::sync::mpsc::error::SendError;
 
-use axum::response::IntoResponse;
+use axum::{extract::ws::Message, response::IntoResponse};
 use thiserror::Error;
 
 pub const AUTH_SERVER: &str = "http://localhost:3345";
@@ -22,6 +23,9 @@ pub use show_invites::*;
 mod show_metadata;
 pub use show_metadata::*;
 
+mod show_chats;
+pub use show_chats::*;
+
 #[derive(Error, Debug)]
 pub enum HandleError {
     #[error("Unknown instruction: {0}")]
@@ -29,7 +33,11 @@ pub enum HandleError {
     #[error("Failed to handle instruction: {0}")]
     HandleError(String),
     #[error("Failed to send: {0}")]
-    SendError(String),
+    SendError(#[from] SendError<Message>),
+    #[error("Failed to register message channel for user: {0}")]
+    ChannelError(String),
+    #[error("No message channel found for user")]
+    NoChannelFound,
 
     #[error("No user found: {0}")]
     NoUserFound(String),

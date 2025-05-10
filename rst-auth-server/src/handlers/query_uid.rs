@@ -15,12 +15,13 @@ pub async fn get_uid(
         ));
     }
 
-    let filter = doc! {
-        "$or": [
-            { "email": query.email },
-            { "phone": query.phone }
-        ],
-    };
+    let mut filter = doc! {};
+    if let Some(email) = query.email {
+        filter.insert("email", email);
+    }
+    if let Some(phone) = query.phone {
+        filter.insert("phone", phone);
+    }
 
     Ok(Json(find_one::<UserCredential>(
         &state.db_client,

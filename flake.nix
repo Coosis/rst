@@ -36,10 +36,10 @@
 							valkey
 							# redis
             ];
-            shellHook = ''
-              export SHELL=$(which zsh)
-              exec zsh
-            '';
+            # shellHook = ''
+            #   export SHELL=$(which zsh)
+            #   exec zsh
+            # '';
           };
         });
 

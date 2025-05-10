@@ -27,16 +27,16 @@ pub async fn read_loop(
                         "Connection closed".to_string()
                 ))
             }
-            tokio_tungstenite::tungstenite::Message::Text(t) => {
-                println!("Received text message: {}", t);
+            tokio_tungstenite::tungstenite::Message::Text(_) => {
+                // println!("Received text message: {}", t);
                 continue;
             }
             tokio_tungstenite::tungstenite::Message::Ping(_) => {
-                println!("Received ping");
+                // println!("Received ping");
                 continue;
             }
             tokio_tungstenite::tungstenite::Message::Pong(_) => {
-                println!("Received pong");
+                // println!("Received pong");
                 continue;
             }
             _ => return Err(ClientError::ConnectionError(

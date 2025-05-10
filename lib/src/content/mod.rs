@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 mod image;
 pub use image::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[derive(Serialize, Deserialize)]
 pub enum ContentType {
     Text,

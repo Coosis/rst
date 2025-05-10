@@ -12,3 +12,5 @@ mod show_invites_response;
 pub use show_invites_response::*;
 mod show_metadata;
 pub use show_metadata::*;
+mod show_chats_response;
+pub use show_chats_response::*;

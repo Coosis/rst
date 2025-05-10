@@ -10,3 +10,5 @@ mod accept_invite;
 pub use accept_invite::*;
 mod send_message;
 pub use send_message::*;
+mod show_chats;
+pub use show_chats::*;

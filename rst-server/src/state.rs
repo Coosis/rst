@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use argon2::Argon2;
 use axum::extract::ws::Message;
+use lib::jwt::Jwt;
 use lib::user::UserCredential;
 use mongodb::Client;
 // use redis::AsyncCommands;
 use lib::Uuid;
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::debug;
 
 use crate::handlers::HandleError;
@@ -18,7 +20,7 @@ pub struct AppState {
     // pub tx: HashMap<Uuid, MsgChan>,
     /// Used for message routing,
     /// user id -> message channel
-    pub authed_tx: HashMap<Uuid, MsgChan>,
+    pub authed_tx: HashMap<Uuid, HashSet<MsgChan>>,
     pub db_client: mongodb::Client,
     // pub kv_client: redis::aio::MultiplexedConnection,
     pub argon: Argon2<'static>,
@@ -33,7 +35,7 @@ impl AppState {
     /// * `kv_uri` - A string slice that holds the URI for the Redis connection
     pub async fn new(
         uri: &str,
-        kv_uri: &str
+        _kv_uri: &str
     ) -> Result<Self> {
         // DB connection
         let db_client = match Client::with_uri_str(uri).await {
@@ -75,38 +77,67 @@ impl AppState {
         })
     }
 
-    pub async fn get_tx(&self, id: Uuid) -> Result<MsgChan> {
-        if let Some(tx) = self.authed_tx.get(&id) {
-            return Ok(tx.clone());
-        } else {
-            return Err(HandleError::NoUserFound(
-                "User not found".to_string()
-            ));
+    pub fn broadcast(&self, uid: Uuid, msg: Message) -> Result<()> {
+        let tx = self.authed_tx.get(&uid).ok_or(
+            HandleError::ChannelError(
+                "Failed to get channel set".to_string()
+            )
+        )?;
+        for chan in tx {
+            chan.chan.send(msg.clone())?;
         }
+        Ok(())
     }
 
-    /// Clean up/close the connection from server to a client recognized by uid.
-    /// token, this token is purely server-side and has no meaning to the client.
-    pub async fn cleanup(&mut self, session_token: Uuid) -> Result<()> {
-        debug!("Cleaning up connection for session token: {}", session_token.to_string());
-        // let token_str = session_token.to_string();
-        // let user_id: String = match client.get(token_str).await {
-        //     Ok(u) => u,
-        //     Err(e) => return Err(
-        //         HandleError::CacheError(e)
-        //     )
-        // };
-        // let user_id = match Uuid::parse_str(&user_id) {
-        //     Ok(u) => u,
-        //     Err(_) => return Err(
-        //         HandleError::HandleError(
-        //             "Failed to parse user id".to_string()
-        //         )
-        //     )
-        // };
-        // debug!("Cleaning up user id: {} for token: {}", user_id.to_string(), session_token.to_string());
-        self.authed_tx.remove(&session_token);
+    /// Used for registering a websocket channel for a single account
+    pub fn register_client(
+        &mut self,
+        tx: MsgChan,
+    ) -> Result<()> {
+        debug!("Registering client");
+        let uid = tx.jwt.uid;
+        let set = match self.authed_tx.get_mut(&uid) {
+            Some(set) => set,
+            None => {
+                let set = HashSet::new();
+                self.authed_tx.insert(uid, set);
+                self.authed_tx.get_mut(&uid).ok_or(
+                    HandleError::ChannelError(
+                        "Failed to get channel set".to_string()
+                    )
+                )?
+            }
+        };
+        set.insert(tx.clone());
 
+        Ok(())
+    }
+
+    /// Clean up/close that channel for that user, if that was the last channel, the entry of that
+    /// user is removed
+    pub fn cleanup(
+        &mut self,
+        chan: MsgChan
+    ) -> Result<()> {
+        let uid = chan.jwt.uid;
+        debug!("Cleaning up one connection for user: {}", uid.to_string());
+        let set = self.authed_tx.get_mut(&uid).ok_or(
+            HandleError::ChannelError(
+                "Failed to get channel set".to_string()
+            )
+        )?;
+        set.remove(&chan);
+        if set.is_empty() {
+            self.authed_tx.remove(&uid);
+        }
+
+        Ok(())
+    }
+
+    /// Forcefully disconnect *every* WebSocket session for this `uid`.
+    pub fn disconnect_user(&mut self, uid: Uuid) -> Result<()> {
+        if let Some(channels) = self.authed_tx.remove(&uid) {
+        }
         Ok(())
     }
 }

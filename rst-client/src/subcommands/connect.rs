@@ -4,6 +4,8 @@ use std::str::from_utf8;
 use lib::comm::client_instruct::LoginType;
 use lib::comm::client_instruct::ShowMetadataRequest;
 use lib::comm::server_instruct::PushMessage;
+use lib::comm::server_instruct::ShowChatsResponse;
+use lib::comm::server_instruct::ShowInvitesResponse;
 use lib::comm::server_instruct::ShowMetadataResponse;
 use lib::content::ContentType;
 use lib::user::MetadataQuery;
@@ -21,7 +23,9 @@ use lib::comm::{
 use lib::comm::client_instruct::LoginRequest;
 use tokio_tungstenite::tungstenite::Message;
 
-const AUTH_SERVER: &str = "http://localhost:3345/auth";
+pub const AUTH_SERVER: &str = "http://localhost:3345/auth";
+pub const REGISTER_SERVER: &str = "http://localhost:3345/register";
+pub const METADATA_SERVER: &str = "http://localhost:3345/get_metadata";
 
 use crate::parse_inner;
 use crate::read_loop;
@@ -164,6 +168,24 @@ pub async fn connect(addr: String, sub: bool)
                     println!();
                 }
             }
+            ServerInstruct::ShowChatsResponse => {
+                println!("Show chats response received: ");
+                let msg = parse_inner::<ShowChatsResponse>(&msg.content);
+                for (i, r) in msg.chats.iter().enumerate() {
+                    println!("Chat {}: ", i);
+                    println!("Associated chat id: {:?}", r.id);
+                    println!("Associated chat name: {:?}", r.name);
+                    println!("Associated chat members: {:?}", r.members);
+                    println!();
+                }
+            }
+            ServerInstruct::ShowInvitesResponse => {
+                println!("Show invites response received: ");
+                let msg = parse_inner::<ShowInvitesResponse>(&msg.content);
+                for invite in msg.invites {
+                    println!("{:?}", invite);
+                }
+            }
             ServerInstruct::PushMessage => {
                 println!("Push message received: ");
                 let msg = parse_inner::<PushMessage>(&msg.content).message;
@@ -188,6 +210,5 @@ pub async fn connect(addr: String, sub: bool)
 
         ControlFlow::Continue(())
     }).await?;
-    let a: Box<str> = "hello".into();
     Ok(())
 }

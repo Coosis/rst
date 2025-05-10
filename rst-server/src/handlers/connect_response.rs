@@ -2,8 +2,8 @@ use bson::doc;
 use lib::chat::Chat;
 use lib::comm::client_instruct::ClientConnectResponse;
 use lib::invite::Invitation;
+use lib::jwt::Jwt;
 use lib::util::BsonDocExt;
-use lib::Uuid;
 use tokio::sync::MutexGuard;
 use tracing::debug;
 
@@ -12,7 +12,7 @@ use crate::{find_one_and_delete, update_one, HandleError, Result};
 use crate::{TB_CHATS, TB_INVITES};
 
 pub async fn connect_response(
-    uid: Uuid,
+    token: Jwt,
     state: MutexGuard<'_, AppState>,
     req: ClientConnectResponse,
     ) -> Result<()> {
@@ -20,7 +20,7 @@ pub async fn connect_response(
     let db_client = state.db_client.clone();
     let invite_filter = doc! {
         "id": req.invite_id,
-        "to": uid.clone(),
+        "to": token.uid.clone(),
     };
     let invitation: Invitation = find_one_and_delete(
         &db_client,
@@ -31,7 +31,7 @@ pub async fn connect_response(
     let roomid = invitation.chat_id;
     debug!("Invitation found: {:?}", invitation);
     let chat_filter = doc! { "id": roomid, };
-    let update = doc! { "$addToSet": { "members": uid.clone() } };
+    let update = doc! { "$addToSet": { "members": token.uid.clone() } };
     update_one::<Chat>(
         &db_client,
         TB_CHATS,

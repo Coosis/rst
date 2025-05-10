@@ -5,28 +5,36 @@ s:
 	mongosh --port 27017
 
 c:
-	cargo run -p rst-client -- connect ws://localhost:3000/ws
+	cargo build -p rst-client
+	./target/debug/rst-client connect ws://localhost:3000/ws
 
 serv:
 	cargo run -p rst-server
 
+serv-auth:
+	cargo run -p rst-auth-server
+
+j bc:
+	cargo build -p rst-client
+
 cmock:
-	cargo run -p rst-client \
-	-- register http://127.0.0.1:3345/register \
+	cargo build -p rst-client
+	./target/debug/rst-client \
+	register http://127.0.0.1:3345/register \
 	--phone 13760283690 \
 	--email 1159727122@qq.com \
 	-u coosis \
 	-p passwd
 
-	cargo run -p rst-client \
-	-- register http://127.0.0.1:3345/register \
+	./target/debug/rst-client \
+	register http://127.0.0.1:3345/register \
 	--phone 123456 \
 	--email 123456 \
 	-u coosis2 \
 	-p passwd
 
-send-chat tok:
-	cargo run -p rst-client -- \
+send-invite tok:
+	./target/debug/rst-client \
 	send-request ws://localhost:3000/ws \
 	--token {{tok}} \
 	--email 123456 \
@@ -34,19 +42,24 @@ send-chat tok:
 	--description 'a chat for test'
 
 send-msg tok chatid:
-	cargo run -p rst-client -- \
+	./target/debug/rst-client \
 	send-message ws://localhost:3000/ws \
 	--token {{tok}} \
 	--chat-id {{chatid}} \
 	--message 'hello world'
 
-list-chat tok:
-	cargo run -p rst-client -- \
+list-invites tok:
+	./target/debug/rst-client \
 	show-invites ws://localhost:3000/ws \
 	--token {{tok}}
 
-accept-chat tok chatid:
-	cargo run -p rst-client -- \
+list-chat tok:
+	./target/debug/rst-client \
+	show-chats ws://localhost:3000/ws \
+	--token {{tok}}
+
+accept-invite tok chatid:
+	./target/debug/rst-client \
 	accept-invite ws://localhost:3000/ws \
 	-t {{tok}} \
 	-i {{chatid}}
@@ -62,7 +75,7 @@ initm:
 	-d mongodb/mongodb-community-server:latest
 	mongosh --port 27017 mongo_init.js
 
-spindb:
+reset:
 	mongosh --port 27017 mongo_init.js
 
 initv:

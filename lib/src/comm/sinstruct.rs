@@ -21,6 +21,7 @@ pub enum ServerInstruct {
     RegisterResponse = 5,
     ShowInvitesResponse = 6,
     ShowMetadataResponse = 7,
+    ShowChatsResponse = 8,
 
     /// Unknown message
     Unknown = -1,
@@ -49,6 +50,7 @@ impl<'de> Deserialize<'de> for ServerInstruct {
             5 => Ok(ServerInstruct::RegisterResponse),
             6 => Ok(ServerInstruct::ShowInvitesResponse),
             7 => Ok(ServerInstruct::ShowMetadataResponse),
+            8 => Ok(ServerInstruct::ShowChatsResponse),
             _ => Ok(ServerInstruct::Unknown),
         }
     }

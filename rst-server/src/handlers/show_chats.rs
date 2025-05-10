@@ -1,29 +1,28 @@
 use bson::doc;
-use lib::invite::Invitation;
+use lib::chat::Chat;
 use lib::jwt::Jwt;
 
 use crate::util::message_util::MessageExt;
-use crate::{find_many, LockedState, Result};
-use crate::TB_INVITES;
+use crate::{find_many, LockedState, Result, TB_CHATS};
 
-pub async fn show_invites(
+pub async fn show_chats(
     token: Jwt,
     state: &LockedState<'_>,
 ) -> Result<()> {
     tracing::debug!("Handling show_invites");
     let db_client = state.db_client.clone();
     let filter = doc! {
-        "to": token.uid,
+        "members": token.uid
     };
-    let invites: Vec<Invitation> = find_many(
+    let chats: Vec<Chat> = find_many(
         &db_client,
-        TB_INVITES, 
-        filter.clone()
+        TB_CHATS, 
+        filter
         ).await?;
-    let msg = lib::comm::server_instruct::ShowInvitesResponse::new(invites)
+    let msg = lib::comm::server_instruct::ShowChatsResponse::new(chats)
         .try_into_ws_msg()?;
     
     state.broadcast(token.uid, msg)?;
-    tracing::debug!("Sent invites to channel");
+    tracing::debug!("Sent chats to channel");
     Ok(())
 }

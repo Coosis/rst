@@ -1,14 +1,12 @@
-use std::str::FromStr;
-
-use crate::ClientError;
 use lib::{user::PublicUserCredential, Uuid};
-use lib::comm::ClientMessage;
 use lib::comm::client_instruct::ClientConnectRequest;
-use futures::{SinkExt, StreamExt};
+
+use crate::{ClientError, LockedState};
+
 type Result<T> = std::result::Result<T, ClientError>;
 
 pub async fn send_chat_request(
-    addr: &str,
+    state: &LockedState<'_>,
 
     email: Option<String>,
     phone: Option<String>,
@@ -38,24 +36,33 @@ pub async fn send_chat_request(
         name,
         description);
 
-    let (ws_stream, response) = match tokio_tungstenite::connect_async(addr).await {
-        Ok((stream, response)) => (stream, response),
-        Err(e) => return Err(ClientError::ConnectionError(e.to_string())),
-    };
+    if let Some(conn) = &state.connection {
+        let msg = request.try_into()?;
+        conn.send(msg).await?;
+    } else {
+        return Err(ClientError::ConnectionError(
+            "No connection".to_string()
+        ));
+    }
 
-    println!("Response status code: {}", response.status());
-    let (mut ws_sink, _) = ws_stream.split();
-
-    let msg: ClientMessage = match request.try_into() {
-        Ok(m) => m,
-        Err(e) => return Err(ClientError::SerdeJsonError(e)),
-    };
-    let json_bytes: Vec<u8> = match serde_json::to_vec(&msg) {
-        Ok(bytes) => bytes,
-        Err(e) => return Err(ClientError::SerdeJsonError(e)),
-    };
-    let msg = tokio_tungstenite::tungstenite::Message::Binary(json_bytes.into());
-    let _ = ws_sink.send(msg).await;
+    // let (ws_stream, response) = match tokio_tungstenite::connect_async(addr).await {
+    //     Ok((stream, response)) => (stream, response),
+    //     Err(e) => return Err(ClientError::ConnectionError(e.to_string())),
+    // };
+    //
+    // println!("Response status code: {}", response.status());
+    // let (mut ws_sink, _) = ws_stream.split();
+    //
+    // let msg: ClientMessage = match request.try_into() {
+    //     Ok(m) => m,
+    //     Err(e) => return Err(ClientError::SerdeJsonError(e)),
+    // };
+    // let json_bytes: Vec<u8> = match serde_json::to_vec(&msg) {
+    //     Ok(bytes) => bytes,
+    //     Err(e) => return Err(ClientError::SerdeJsonError(e)),
+    // };
+    // let msg = tokio_tungstenite::tungstenite::Message::Binary(json_bytes.into());
+    // let _ = ws_sink.send(msg).await;
 
     Ok(())
 }

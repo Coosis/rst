@@ -16,6 +16,7 @@ use lib::jwt::Jwt;
 // use server::db_entry::DBEntries;
 use tokio;
 use tokio::sync::{Mutex, MutexGuard};
+use tokio_util::sync::CancellationToken;
 use tracing::{info, debug, warn, error};
 use lib;
 use lib::Uuid;
@@ -34,11 +35,14 @@ mod util;
 use util::*;
 mod db;
 use db::*;
-mod cache;
-use cache::*;
+// mod cache;
+// use cache::*;
+mod msg_chan;
+use msg_chan::*;
 
 type SharedState = Arc<Mutex<AppState>>;
-type MsgChan = tokio::sync::mpsc::UnboundedSender<Message>;
+type LockedState<'a> = MutexGuard<'a, AppState>;
+// type MsgChan = tokio::sync::mpsc::UnboundedSender<Message>;
 type Result<T> = std::result::Result<T, HandleError>;
 
 #[tokio::main]
@@ -151,14 +155,22 @@ async fn handle_socket(
     let (mut sender, mut receiver) = socket.split();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
 
+    let chan = MsgChan::new(
+        token.clone(),
+        tx,
+    );
     // map uid to websocket channel
     {
-        let state = state.clone();
         let mut state = state.lock().await;
-        state.authed_tx.insert(
-            token.uid, 
-            tx.clone()
-        );
+        match state.register_client(chan.clone()) {
+            Ok(_) => {
+                debug!("Registered client for uid: {}", &token.uid);
+            }
+            Err(e) => {
+                warn!("Failed to register client: {:?}", e);
+                return;
+            }
+        }
     }
 
     let send_task = tokio::spawn(async move {
@@ -177,21 +189,17 @@ async fn handle_socket(
         rx.close();
     });
 
+    let token_cloned = token.clone();
+    let state_cloned = state.clone();
     let recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             if process_message (
-                token.clone(),
-                state.clone(),
-                tx.clone(),
+                token_cloned.clone(),
+                state_cloned.clone(),
                 msg,
                 ).await.is_break() {
                 return;
             }
-        }
-
-        {
-            let mut state = state.lock().await;
-            let _ = state.cleanup(token.uid).await;
         }
     });
     
@@ -203,12 +211,17 @@ async fn handle_socket(
             debug!("sender task finished");
         }
     }
+
+    {
+        let mut state = state.lock().await;
+        let _ = state.cleanup(chan);
+    }
 }
 
 async fn process_message(
     token: Jwt,
     state: SharedState,
-    tx: MsgChan,
+    // tx: &MsgChan,
     msg: Message,
 ) -> ControlFlow<()> {
     match msg {
@@ -225,16 +238,13 @@ async fn process_message(
             match handle(
                 state,
                 token,
-                &tx,
                 cm).await {
                 Ok(_) => {
                     info!("Handled message");
                 }
                 Err(e) => {
                     warn!("Failed to handle message: {:?}", e);
-                    let _ = tx.send(
-                        Message::text(format!("Failed to handle message {}", e))
-                    );
+                    return ControlFlow::Continue(());
                 }
             }
 
@@ -268,7 +278,6 @@ async fn process_message(
 pub async fn handle(
     state: SharedState,
     token: Jwt,
-    tx: &MsgChan,
     cm: ClientMessage
 ) -> Result<()> {
     let state = state.lock().await;
@@ -276,62 +285,48 @@ pub async fn handle(
         ClientInstruct::Ack => handlers::handle_ack().await?,
         ClientInstruct::SendMessage => {
             let request = parse_inner::<SendMessage>(&cm.content)?;
-            handlers::handle_send_message(state, token, request).await?
+            handlers::handle_send_message(
+                token,
+                &state, 
+                request
+            ).await?
         }
         ClientInstruct::ClientConnectRequest => {
             let request = parse_inner::<ClientConnectRequest>(&cm.content)?;
             connect_with(
-                state, 
                 token,
-                request).await?;
+                &state, 
+                request
+            ).await?;
             // TODO: storing logic
         }
         ClientInstruct::ClientConnectResponse => {
             let response = parse_inner::<ClientConnectResponse>(&cm.content)?;
-            connect_response(token.uid, state, response).await?;
+            connect_response(
+                token,
+                state,
+                response
+            ).await?;
         }
         ClientInstruct::ListChats => {
+            show_chats(token, &state)
+                .await?;
         }
         ClientInstruct::ModifyChats => {
         }
         ClientInstruct::PollMessages => {
         }
-        // ClientInstruct::LoginRequest => {
-        //     // let _ = parse_inner::<LoginRequest>(&cm.content)?;
-        //     login_handler(
-        //         state,
-        //         tx,
-        //         token,
-        //     ).await?;
-        // }
-        // ClientInstruct::RegisterRequest => {
-        //     let client = state.db_client.clone();
-        //     let request = parse_inner::<RegisterRequest>(&cm.content)?;
-        //     if request.email.is_none() &&
-        //         request.phone.is_none() {
-        //             return Err(
-        //                 HandleError::HandleError("Email or phone must be provided".to_string())
-        //             );
-        //     }
-        //     register_handler(
-        //         client,
-        //         &state.argon,
-        //         request,
-        //     ).await?;
-        // }
         ClientInstruct::ShowInvitesRequest => {
-            // let _ = parse_inner::<ShowInvitesRequest>(&cm.content)?;
             show_invites(
-                state,
-                &tx,
-                token.uid
+                token,
+                &state,
             ).await?;
         }
         ClientInstruct::ShowMetadataRequest => {
             let request = parse_inner::<ShowMetadataRequest>(&cm.content)?;
             show_metadata(
-                state,
-                &tx,
+                token,
+                &state,
                 request
             ).await?;
         }

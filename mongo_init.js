@@ -1,3 +1,6 @@
+db.messages.drop()
+db.chats.drop()
+db.invites.drop()
 db.createCollection('messages')
 db.messages.createIndex({ id: 1 }, { unique: true })
 db.messages.createIndex({ to: 1 })
@@ -11,7 +14,24 @@ db.invites.createIndex({ to: 1 })
 db.invites.createIndex({ from: 1 })
 
 var auth_db = db.getSiblingDB('auth_db')
+auth_db.users.drop()
 auth_db.createCollection('users')
 auth_db.users.createIndex({ id: 1 }, { unique: true })
-auth_db.users.createIndex({ phone: 1 }, { unique: true, sparse: true })
-auth_db.users.createIndex({ email: 1 }, { unique: true, sparse: true })
+db.users.createIndex(
+  { phone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      phone: { $exists: true }
+    }
+  }
+)
+db.users.createIndex(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      phone: { $exists: true }
+    }
+  }
+)

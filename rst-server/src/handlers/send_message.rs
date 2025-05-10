@@ -5,17 +5,15 @@ use lib::comm::server_instruct::PushMessage;
 use lib::jwt::Jwt;
 use lib::message::Message;
 use lib::Uuid;
-use tokio::sync::MutexGuard;
 use tracing::debug;
 
 use crate::message_util::MessageExt;
-use crate::state::AppState;
-use crate::{find_one, insert_one, HandleError, Result, TB_MESSAGES};
+use crate::{find_one, insert_one, HandleError, LockedState, Result, TB_MESSAGES};
 use crate::TB_CHATS;
 
 pub async fn handle_send_message(
-    state: MutexGuard<'_, AppState>,
     token: Jwt,
+    state: &LockedState<'_>,
     req: SendMessage,
     ) -> Result<()> {
     debug!("Handling send message");
@@ -42,12 +40,11 @@ pub async fn handle_send_message(
         if !state.authed_tx.contains_key(&m) {
             continue;
         }
-        let tx = state.authed_tx.get(&m)
-            .ok_or(HandleError::NoUserFound("user not found".to_string()))?;
         let msg = msg.clone();
         let msg = PushMessage::new(msg)
             .try_into_ws_msg()?;
-        let _ = tx.send(msg);
+        state.broadcast(m, msg)?;
+
     }
     insert_one::<Message>(
         &db_client,

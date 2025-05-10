@@ -10,6 +10,8 @@ pub enum ClientError {
     InvalidInput(String),
     #[error("Connection error: {0}")]
     ConnectionError(String),
+    #[error("Not connected")]
+    NotConnected,
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Serde error: {0}")]

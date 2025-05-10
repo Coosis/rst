@@ -1,16 +1,15 @@
 use lib::comm::client_instruct::ShowMetadataRequest;
 use lib::comm::server_instruct::ShowMetadataResponse;
-use lib::user::{MetadataQuery, PublicUserCredential, UserCredential};
+use lib::jwt::Jwt;
+use lib::user::{MetadataQuery, PublicUserCredential};
 use tracing::debug;
 
 use crate::message_util::MessageExt;
-use crate::state::AppState;
-use crate::{HandleError, MsgChan, Result, AUTH_SERVER};
-// type Result<T> = std::result::Result<T, HandleError>;
+use crate::{LockedState, Result, AUTH_SERVER};
 
 pub async fn show_metadata(
-    state: tokio::sync::MutexGuard<'_, AppState>,
-    tx: &MsgChan,
+    token: Jwt,
+    state: &LockedState<'_>,
     req: ShowMetadataRequest,
 ) -> Result<()> {
     debug!("Handling show_metadata");
@@ -33,13 +32,13 @@ pub async fn show_metadata(
         );
     }
     let msg = ShowMetadataResponse::new(data).try_into_ws_msg()?;
-    match tx.send(msg) {
+    match state.broadcast(token.uid, msg) {
         Ok(_) => {
             tracing::debug!("Sent show_metadata response");
         },
         Err(e) => {
             tracing::error!("Failed to send show_metadata response: {}", e);
-            return Err(HandleError::SendError(e.to_string()));
+            return Err(e);
         }
     }
     debug!("Handled show_metadata");
